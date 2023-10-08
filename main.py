@@ -1,4 +1,46 @@
 import sqlite3
+import csv
+
+def export_books_to_csv():
+    conn = sqlite3.connect('library.db')
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM books")
+    books = c.fetchall()
+
+    if not books:
+        print("No books to export.")
+        return
+
+    with open('library.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Title', 'Author', 'Publisher', 'Description', 'Category'])
+
+        for book in books:
+            writer.writerow(book)
+
+    print("Books exported to library.csv successfully.")
+
+def import_books_from_csv():
+    file_name = input("Enter the name of the CSV file to import from: ")
+    
+    try:
+        with open(file_name, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader) 
+
+            conn = sqlite3.connect('library.db')
+            c = conn.cursor()
+
+            c.execute("DELETE FROM books") 
+
+            for row in reader:
+                c.execute("INSERT INTO books VALUES (?, ?, ?, ?, ?)", tuple(row))
+
+            conn.commit()
+            print("Books imported from", file_name, "successfully.")
+    except FileNotFoundError:
+        print("File not found. Make sure the specified CSV file exists.")
 
 def create_table():
     conn = sqlite3.connect('library.db')
@@ -95,31 +137,41 @@ def modify_book():
         print("Book not found.")
 
     conn.close()
-def display_all_books():
+
+def display_books():
     conn = sqlite3.connect('library.db')
     c = conn.cursor()
 
-    c.execute("SELECT * FROM books")
+    c.execute('''SELECT ROW_NUMBER() OVER (ORDER BY title) AS row_num, title, author, publisher, description, category
+                 FROM books''')
 
-    results = c.fetchall()
+    books = c.fetchall()
+
+    for book in books:
+        print(f"{book[0]}. Title: {book[1]}\n   Author: {book[2]}\n   Publisher: {book[3]}\n   Description: {book[4]}\n   Category: {book[5]}")
+
+    print()
 
     conn.close()
 
-    if len(results) == 0:
-        print("No books found.")
-    else:
-        for book in results:
-            print(f"Name: {book[0]}, Author: {book[1]}, Publisher: {book[2]}, Description: {book[3]}, Category: {book[4]}")
 def main():
     create_table()
 
     while True:
+        text = '''
+█▀▄▀█ █▀█ █░█ █▀█
+█░▀░█ █▄█ █▀█ █▄█'''
+
+        print(text)
+        print()
         print("1. Add book")
         print("2. Search book")
         print("3. Delete book")
         print("4. Modify book")
         print("5. Display all books")
-        print("6. Exit")
+        print("6. Export books to CSV")  
+        print("7. Import books from CSV") 
+        print("8. Exit")
 
         choice = input("Enter choice: ")
 
@@ -132,8 +184,12 @@ def main():
         elif choice == '4':
             modify_book()
         elif choice == '5':
-            display_all_books()
+            display_books()
         elif choice == '6':
+            export_books_to_csv()
+        elif choice == '7':
+            import_books_from_csv()
+        elif choice == '8':
             break
         else:
             print("Invalid choice. Please try again.")
